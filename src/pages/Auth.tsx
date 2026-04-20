@@ -1,62 +1,66 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import logo from "@/assets/little-voyagers-logo.png";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && user) navigate("/admin");
-  }, [user, authLoading, navigate]);
-
-  const submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
+    setLoading(true);
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/admin` },
+          options: {
+            data: { display_name: displayName || email.split("@")[0] },
+            emailRedirectTo: window.location.origin,
+          },
         });
         if (error) throw error;
-        toast.success("Account created. You can sign in now.");
-        setMode("signin");
+        toast.success("Check your email to confirm your account!");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast.success("Signed in.");
-        navigate("/admin");
+        navigate("/");
       }
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong");
+      toast.error(err.message);
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-gradient-water flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-md bg-card rounded-2xl shadow-card-pop p-8">
-        <Link to="/" className="flex items-center justify-center mb-6">
-          <img src={logo} alt="Little Voyagers" className="w-20 h-20" />
-        </Link>
-        <h1 className="font-display text-2xl text-center text-foreground uppercase tracking-wide">
-          Members Sign In
-        </h1>
-        <p className="text-center text-sm text-muted-foreground mt-1 mb-6">
-          Admin access for content editing.
-        </p>
+    <main className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <h1 className="font-display text-3xl text-primary tracking-tight">THE VOYAGERS CHRONICLE</h1>
+          <p className="text-muted-foreground text-sm mt-2">
+            {mode === "login" ? "Sign in to view your collection" : "Create your account"}
+          </p>
+        </div>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="bg-card border border-border rounded-lg p-6 space-y-4">
+          {mode === "signup" && (
+            <div>
+              <label className="text-xs font-display uppercase tracking-wider text-muted-foreground">Display Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="mt-1 w-full bg-input border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Your name"
+              />
+            </div>
+          )}
           <div>
             <label className="text-xs font-display uppercase tracking-wider text-muted-foreground">Email</label>
             <input
@@ -64,7 +68,8 @@ const Auth = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full bg-input border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="you@example.com"
             />
           </div>
           <div>
@@ -75,34 +80,28 @@ const Auth = () => {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full bg-input border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Min 6 characters"
             />
           </div>
-
           <button
             type="submit"
-            disabled={busy}
-            className="w-full font-display text-sm uppercase tracking-wider bg-primary text-primary-foreground py-3 rounded-md shadow-pop hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-60"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground font-display uppercase tracking-wider py-2.5 rounded text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {busy ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
+            {loading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
-        <button
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="w-full mt-4 text-xs text-muted-foreground hover:text-foreground"
-        >
-          {mode === "signin"
-            ? "Need an account? Sign up"
-            : "Already have an account? Sign in"}
-        </button>
-
-        <Link
-          to="/"
-          className="block text-center mt-6 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-        >
-          ← Back to site
-        </Link>
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+          <button
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="text-primary hover:underline"
+          >
+            {mode === "login" ? "Sign Up" : "Sign In"}
+          </button>
+        </p>
       </div>
     </main>
   );
